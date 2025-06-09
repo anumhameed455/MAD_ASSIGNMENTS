@@ -1,0 +1,112 @@
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import axios from 'axios';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { Accelerometer } from 'expo-sensors';
+
+
+const ApiContext = createContext();
+
+const ApiProvider = ({ children }) => {
+  const [quote, setQuote] = useState(null);
+  const [postResponse, setPostResponse] = useState(null);
+  const [putResponse, setPutResponse] = useState(null);
+
+  const fetchQuote = async () => {
+    try {
+      const res = await axios.get('https://quotes15.p.rapidapi.com/quotes/random/', {
+        headers: {
+          'X-RapidAPI-Key': 'YOUR_RAPIDAPI_KEY', // Replace with your actual RapidAPI Key
+          'X-RapidAPI-Host': 'quotes15.p.rapidapi.com',
+        },
+      });
+      setQuote(res.data);
+    } catch (err) {
+      console.error('GET error:', err.message);
+    }
+  };
+
+  const postQuote = async () => {
+    const mockRes = { message: 'Mock POST successful' };
+    setPostResponse(mockRes);
+  };
+
+  const putQuote = async () => {
+    const mockRes = { message: 'Mock PUT successful' };
+    setPutResponse(mockRes);
+  };
+
+  return (
+    <ApiContext.Provider value={{ quote, fetchQuote, postQuote, putQuote, postResponse, putResponse }}>
+      {children}
+    </ApiContext.Provider>
+  );
+};
+
+
+const HomeScreen = ({ navigation }) => {
+  const { quote, fetchQuote, postQuote, putQuote, postResponse, putResponse } = useContext(ApiContext);
+
+  useEffect(() => {
+    fetchQuote();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Random Quote</Text>
+      <Text style={styles.quote}>{quote?.content || 'Loading quote...'}</Text>
+
+      <Button title="POST (mock)" onPress={postQuote} />
+      {postResponse && <Text>{postResponse.message}</Text>}
+
+      <Button title="PUT (mock)" onPress={putQuote} />
+      {putResponse && <Text>{putResponse.message}</Text>}
+
+      <Button title="Go to Sensor Screen" onPress={() => navigation.navigate('Sensor')} />
+    </View>
+  );
+};
+
+
+const SensorScreen = () => {
+  const [data, setData] = useState({ x: 0, y: 0, z: 0 });
+
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(500); // 500ms update
+    const subscription = Accelerometer.addListener(accelData => setData(accelData));
+    return () => subscription.remove();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Accelerometer (Expo)</Text>
+      <Text>X: {data.x.toFixed(2)}</Text>
+      <Text>Y: {data.y.toFixed(2)}</Text>
+      <Text>Z: {data.z.toFixed(2)}</Text>
+    </View>
+  );
+};
+
+
+const Stack = createStackNavigator();
+
+const App = () => (
+  <ApiProvider>
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Sensor" component={SensorScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  </ApiProvider>
+);
+
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+  quote: { fontSize: 16, fontStyle: 'italic', marginVertical: 20 },
+});
+
+export default App;
